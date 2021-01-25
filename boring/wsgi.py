@@ -19,13 +19,13 @@ class WsgiApp:
     def wsgi_headers(self):
         environ = {
             "wsgi.version": (1, 0),
-            "wsgi.url_scheme": "http",
+            "wsgi.url_scheme": self.req.scheme,
             "wsgi.input": self.req.body,
             "wsgi.errors": sys.stderr,
             "wsgi.multithread": False,
             "wsgi.multiprocess": False,
             "wsgi.run_once": False,
-            "SERVER_SOFTWARE": "",
+            "SERVER_SOFTWARE": "Boring/0.0.1",
             "REQUEST_METHOD": self.req.method,
             "SCRIPT_NAME": "",
             "PATH_INFO": self.req.path,

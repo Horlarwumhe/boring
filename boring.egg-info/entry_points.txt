@@ -1,3 +1,0 @@
-
-                 [console_scripts]
-                 boring = boring.cli:main

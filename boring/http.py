@@ -1,5 +1,6 @@
 import io
 import time
+import urllib
 
 from boring import __version__
 from boring.exception import BadRequest, InvalidHeader
@@ -10,25 +11,28 @@ def http_date(t=None):
 
 
 class Request:
+
     def __init__(self, parser, conn=None):
+
         self._headers = {}
         self.uri = ""
         self.parser = parser
-        #self.path = ""
-        self.addr = parser.remote_addr
+        self.addr = parser.remote_addr  # (addr,port)
         self.remote_addr, self.remote_port = parser.remote_addr
         try:
             self.method, self.uri, self.proto = parser.status_line.decode(
             ).split()
         except ValueError:
             raise BadRequest(400, "Invalid Status Line")
-        #(self.path)
+        self.scheme = 'http'
         q = self.uri.find("?") > -1
         self.query = ''
         if q:
-            self.path, self.query = self.uri.split("?", 1)
+            self.path, query = self.uri.split("?", 1)
+            self.query = urllib.parse.unquote(query)
         else:
             self.path = self.uri
+
 
     @property
     def headers(self):
@@ -53,7 +57,9 @@ class Request:
 
 
 class Response:
+
     def __init__(self, req, conn):
+
         self.req = req
         self.conn = conn
         self.headers = []
@@ -64,6 +70,7 @@ class Response:
         self.headers_sent = False
 
     def start_response(self, status, headers):
+
         if getattr(self, "headers_set", False):
             return
         code, reason = status.split(" ", 1)
@@ -100,7 +107,6 @@ class Response:
         return "".join(header).encode()
 
     def write_response(self, data):
-        #data = data.encode()
         if not self.headers_set:
             raise TypeError("start_response not called")
         size = self.get_length()
@@ -168,6 +174,7 @@ class Response:
 
 
 class BodyReader:
+
     def __init__(self, buf=None, conn=None):
         self.buf = io.BytesIO()
         self.conn = conn
@@ -200,16 +207,16 @@ class BodyReader:
     def readline(self, size=None):
         if not self.start:
             self.buf.seek(0)
+            self.start = True
         return self.buf.readline(size)
 
 
 class HTTPParser:
+
     def __init__(self, sock, server, addr):
         self.server = server
-        #self.sock_file = sock.makefile("rb")
         self.buf = io.BytesIO()
         self.conn = self.sock = sock
-        #self.req = Request(self.buf)
         self.seen_status = False
         self.seen_headers = False
         self.body = BodyReader(conn=sock)
@@ -310,7 +317,6 @@ class HTTPParser:
         headers = []
         done = self.buf.getvalue().find(b"\r\n\r\n") > -1
         if done:
-            #self.begin = True
             self.seen_headers = True
             self.buf.seek(0)
             status = self.buf.readline()

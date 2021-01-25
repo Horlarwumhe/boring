@@ -11,6 +11,7 @@ import threading
 import traceback
 
 from boring import wsgi
+from boring import __version__
 from boring.exception import HttpException
 from boring.http import HTTPParser, Request
 from boring.wsgi import WsgiApp
@@ -18,10 +19,23 @@ from boring.wsgi import WsgiApp
 
 def create_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("app")
-    parser.add_argument("-p", "--port", default=8000)
-    parser.add_argument("--reload", action='store_true')
-    parser.add_argument('-b', '--bind', default='127.0.0.1')
+    parser.add_argument("app", help='wsgi app to load')
+    parser.add_argument("-p",
+                        "--port",
+                        default=8000,
+                        help='port number to use, default 8000')
+    parser.add_argument("--reload",
+                        action='store_true',
+                        help="enable auto reload")
+    parser.add_argument('-b',
+                        '--bind',
+                        default='0.0.0.0',
+                        help='bind to this address')
+    parser.add_argument(
+        '--config',
+        default='.',
+        help='path to configuration file, not usable now, will be added later')
+    parser.add_argument('-v', '--version',version=__version__,action='version')
     args = parser.parse_args()
     return args
 
@@ -32,7 +46,7 @@ class Logger:
         logging.basicConfig(
             level=logging.DEBUG,
             format=
-            '[%(asctime)s] %(method)s %(path)s %(proto)s %(code)s -- %(message)s',
+            ' %(addr)s -- [%(asctime)s] %(method)s %(path)s %(proto)s %(code)s -- %(message)s',
             datefmt='%d/%m/%Y %H:%M:%S')
 
         self.log = logging
@@ -45,6 +59,7 @@ class Logger:
                 'method': req.method,
                 'path': req.uri,
                 'proto': req.proto,
+                'addr': req.remote_addr
             }
             if resp:
                 r.update({'code': resp.code})
@@ -53,6 +68,7 @@ class Logger:
 
 
 class SignalHandler:
+    # more signals will be added
     def __init__(self, server):
         self.server = server
 
@@ -75,7 +91,6 @@ class Server:
         self.signal_class = SignalHandler(self)
         self.app = None
         self.args = None
-        self.active = []
         self.log = Logger()
         self.stop = False
 
@@ -211,6 +226,7 @@ class Server:
         self.sel.close()
         self.stop = True
         sys.exit(0)
+
 
 def reload(server):
     mtimes = {}
