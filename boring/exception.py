@@ -21,7 +21,7 @@ def http_date():
 class HttpException(Exception):
 
     code = 500
-    reason = "Internal Serv9er Error"
+    reason = "Internal Server Error"
     body = "Internal Server Error"
 
     def __init__(self, code=None, reason=""):
@@ -30,13 +30,11 @@ class HttpException(Exception):
         self.reason = reason or self.reason
 
     def write_error(self, conn, req=None, resp=None):
-        error = HTML_ERROR.format(code=self.code,
-                                  reason=self.reason,
-                                  body=self.body)
-        status = "HTTP/1.1 %s %s\r\n" % (self.code, self.reason)  #encode()
+        error = HTML_ERROR.format(reason=self.reason, body=self.body)
+        status = "HTTP/1.1 %s %s\r\n" % (self.code, self.reason)  # encode()
         status = status.encode()
         self.headers.extend([("Content-Length", len(error)),
-                             ("Date", http_date())])
+                             ("Date", http_date()), ("Connection", 'close')])
         headers = ["%s: %s\r\n" % (k, v) for k, v in self.headers]
         headers.append("\r\n")
         conn.send(status)
@@ -51,4 +49,4 @@ class BadRequest(HttpException):
 
 
 class InvalidHeader(BadRequest):
-    body = "Bad Request"
+    pass

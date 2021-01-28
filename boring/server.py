@@ -22,7 +22,7 @@ def create_args():
     parser.add_argument("app", help='wsgi app to load')
     parser.add_argument("-p",
                         "--port",
-                        default=8000,
+                        default=int(os.environ.get("PORT", 8000)),
                         help='port number to use, default 8000')
     parser.add_argument("--reload",
                         action='store_true',
@@ -35,7 +35,10 @@ def create_args():
         '--config',
         default='.',
         help='path to configuration file, not usable now, will be added later')
-    parser.add_argument('-v', '--version',version=__version__,action='version')
+    parser.add_argument('-v',
+                        '--version',
+                        version=__version__,
+                        action='version')
     args = parser.parse_args()
     return args
 
@@ -43,16 +46,30 @@ def create_args():
 class Logger:
     # [23/Jan/2021 12:43:30] code 501, message Unsupported method ('POST')
     def __init__(self):
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format=
-            ' %(addr)s -- [%(asctime)s] %(method)s %(path)s %(proto)s %(code)s -- %(message)s',
-            datefmt='%d/%m/%Y %H:%M:%S')
+        self._access = logging.getLogger(__name__)
+        self._access.setLevel(logging.DEBUG)
+        ch = logging.StreamHandler()
+        ch.setLevel(logging.DEBUG)
 
-        self.log = logging
+        formatter = logging.Formatter(
+            ' %(addr)s -- [%(asctime)s] %(method)s %(path)s %(proto)s %(code)s -- %(message)s'
+        )
+        ch.setFormatter(formatter)
+        ##
+        ### add ch to logger
+        self._access.addHandler(ch)
+
+        self._log = logging.getLogger('__')
+        self._log.setLevel(logging.DEBUG)
 
     def access(self, req=None, resp=None):
-        extras = {'method': '', "path": '', 'code': '', 'proto': ''}
+        extras = {
+            'method': '',
+            "path": '',
+            'code': '',
+            'proto': '',
+            'addr': ''
+        }
         r = {}
         if req:
             r = {
@@ -64,7 +81,10 @@ class Logger:
             if resp:
                 r.update({'code': resp.code})
         extras.update(r)
-        self.log.info('', extra=extras)
+        self._access.info('', extra=extras)
+
+    def log(self, message):
+        self._log.info(message)
 
 
 class SignalHandler:
@@ -73,7 +93,7 @@ class SignalHandler:
         self.server = server
 
     def sigterm(self, *args):
-        pass
+        self.sigint(*args)
 
     def sigint(self, *args):
         print("[INFO] quiting server .......")
@@ -84,7 +104,9 @@ class SignalHandler:
 
 
 class Server:
-    def __init__(self):
+
+    def __init__(self, config=None):
+        self.config = config  # todo: configuration class
         self.sel = selectors.DefaultSelector()
         self.sock = socket.socket()
         self.signals = ['SIGTERM', "SIGINT"]
@@ -101,6 +123,7 @@ class Server:
             self.sock.bind((addr, int(port)))
         except OSError as e:
             print("[ERROR] could't bind to address %s:%s" % (addr, port), e)
+            sys.exit(-1)
         self.sock.listen(100)
         self.sock.setblocking(False)
         self.sel.register(self.sock, selectors.EVENT_READ,
@@ -117,6 +140,7 @@ class Server:
             events = self.sel.select(0)
             for key, mask in events:
                 if key.fileobj is self.sock:
+
                     self.handle_connection(self.sock)
                 else:
                     try:
@@ -134,7 +158,10 @@ class Server:
                                self.signal_class.unknown)
             sig = getattr(signal, sig, None)
             if sig:
-                signal.signal(sig, sig_func)
+                try:
+                    signal.signal(sig, sig_func)
+                except OSError:
+                    continue
 
     def init(self):
         self.init_signals()
@@ -151,7 +178,10 @@ class Server:
         self.app = wsgi.load_app(self.args)
 
     def handle_connection(self, sock):
-        conn, addr = sock.accept()
+        try:
+            conn, addr = sock.accept()
+        except socket.error:
+            return
         conn.setblocking(False)
         self.sel.register(conn,
                           selectors.EVENT_READ,
@@ -163,7 +193,8 @@ class Server:
         try:
             parser = parser()
         except socket.error:
-            pass
+            self.close_connection(conn)
+            return
         except HttpException as e:
             e.write_error(conn)
             self.close_connection(conn)
@@ -206,12 +237,16 @@ class Server:
             return
         try:
             self.sel.unregister(conn)
-            conn.close()
         except (ValueError, KeyError):  # raised by selectors.unregister
             pass
+        finally:
+            conn.close()
 
     def reuse_connection(self, conn, req):
         """ re-use connection for keep-alive header"""
+        self.close_connection(conn)
+        return
+        # dont want to keep connection for now
         try:
             self.sel.unregister(conn)
             self.sel.register(conn,

@@ -1,8 +1,10 @@
+import importlib
 import os
 import socket
 import sys
 import traceback
 
+from boring import SERVER_SOFTWARE
 from boring.exception import HttpException
 from boring.http import Response
 
@@ -25,7 +27,7 @@ class WsgiApp:
             "wsgi.multithread": False,
             "wsgi.multiprocess": False,
             "wsgi.run_once": False,
-            "SERVER_SOFTWARE": "Boring/0.0.1",
+            "SERVER_SOFTWARE": SERVER_SOFTWARE,
             "REQUEST_METHOD": self.req.method,
             "SCRIPT_NAME": "",
             "PATH_INFO": self.req.path,
@@ -94,7 +96,7 @@ def load_app(args):
         module, func = app, "application"
     try:
         sys.path.insert(0, os.getcwd())
-        app = __import__(module)
+        app = importlib.import_module(module)
         func = getattr(app, func)
     except ImportError as e:
         raise ImportError("could'nt import app %s , %s" % (module, e))

@@ -1,6 +1,6 @@
 import io
 import time
-import urllib
+import urllib.parse
 
 from boring import __version__
 from boring.exception import BadRequest, InvalidHeader
@@ -18,12 +18,13 @@ class Request:
         self.uri = ""
         self.parser = parser
         self.addr = parser.remote_addr  # (addr,port)
-        self.remote_addr, self.remote_port = parser.remote_addr
+        self.remote_addr, self.remote_port = self.addr
         try:
             self.method, self.uri, self.proto = parser.status_line.decode(
             ).split()
         except ValueError:
             raise BadRequest(400, "Invalid Status Line")
+        self.uri = urllib.parse.unquote(self.uri)
         self.scheme = 'http'
         q = self.uri.find("?") > -1
         self.query = ''
@@ -235,9 +236,6 @@ class HTTPParser:
     def readbuf(self):
         return self.buf.getvalue()
 
-    def read_request():
-        pass
-
     def read_chunck(self):
         buf = io.BytesIO()
         buf.write(self.buf.getvalue())
@@ -245,6 +243,8 @@ class HTTPParser:
         while 1:
             line = buf.readline()
             if not line:
+                #  create new buf to write request body
+                #  the previous one has been consumed
                 self.buf = io.BytesIO()
                 break
             size = line.strip(b'\r\n')

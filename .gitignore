@@ -3,3 +3,6 @@ __pycache__
 *.md
 !README.md
 *.txt
+build
+dist 
+boring.egg-info/
