@@ -4,14 +4,10 @@ import urllib.parse
 
 from boring import __version__
 from boring.exception import BadRequest, InvalidHeader
-
-
-def http_date(t=None):
-    return time.strftime("%a, %d %b %y %H:%M:%S")
+from boring.utils import http_date
 
 
 class Request:
-
     def __init__(self, parser, conn=None):
 
         self._headers = {}
@@ -33,7 +29,6 @@ class Request:
             self.query = urllib.parse.unquote(query)
         else:
             self.path = self.uri
-
 
     @property
     def headers(self):
@@ -58,7 +53,6 @@ class Request:
 
 
 class Response:
-
     def __init__(self, req, conn):
 
         self.req = req
@@ -86,7 +80,7 @@ class Response:
         for name, value in self.headers:
             if name.lower() == 'content-length':
                 return int(value)
-        return 0
+        return
 
     def is_chunck(self):
         for k, v in self.headers:
@@ -112,7 +106,7 @@ class Response:
             raise TypeError("start_response not called")
         size = self.get_length()
         chunck = False
-        if not size:
+        if size is None:
             chunck = True
             if not self.is_chunck():
                 self.headers.append(("Transfer-Encoding", 'chunked'))
@@ -149,10 +143,10 @@ class Response:
                 data.close()
 
     def write_body(self, data, size=None, chunck=False):
-        assert size is not None
         if chunck:
             self.write_chunck(data)
             return
+        assert size is not None
         try:
             iterator = iter(data)
             while 1:
@@ -175,7 +169,6 @@ class Response:
 
 
 class BodyReader:
-
     def __init__(self, buf=None, conn=None):
         self.buf = io.BytesIO()
         self.conn = conn
@@ -213,7 +206,6 @@ class BodyReader:
 
 
 class HTTPParser:
-
     def __init__(self, sock, server, addr):
         self.server = server
         self.buf = io.BytesIO()
@@ -271,9 +263,8 @@ class HTTPParser:
         size = 0
         for k, v in self.headers:
             if k.lower() == b"content-length":
-                size = int(v)
+                size = int(v)  # TODO: content-length might not be int
             elif k.lower() == b"transfer-encoding" and v.lower() == b"chunked":
-                #self.chunk = True
                 self.body.is_chunk = True
                 self.read_chunck()
                 return
@@ -283,7 +274,6 @@ class HTTPParser:
             self.begin = True
             return
         if size and buf_size >= size:
-            # size (content-length) is >= amount in the buf
             self.begin = True
             self.buf.seek(0)
             self.body.write(self.buf.read(size))

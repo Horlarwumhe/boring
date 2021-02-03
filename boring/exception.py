@@ -1,6 +1,5 @@
-import time
-
 from boring import __version__
+from boring.utils import http_date
 
 HTML_ERROR = """<html>
       <head>
@@ -12,10 +11,6 @@ HTML_ERROR = """<html>
       </body>
     </html>
 """
-
-
-def http_date():
-    return time.strftime("%a, %d %b %y %H:%M:%S")
 
 
 class HttpException(Exception):

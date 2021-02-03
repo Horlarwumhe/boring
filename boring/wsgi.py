@@ -7,16 +7,18 @@ import traceback
 from boring import SERVER_SOFTWARE
 from boring.exception import HttpException
 from boring.http import Response
+from boring.middleware import StaticsHandler
 
 
 class WsgiApp:
-    def __init__(self, app, request, conn, server, log):
+    def __init__(self, app, request, conn, server, log, config=None):
         self.server = server
         self.req = request
         self.app = app
         self.conn = conn
         self.resp = Response(self.req, self.conn)
         self.log = log
+        self.config = config
 
     def wsgi_headers(self):
         environ = {
@@ -51,6 +53,8 @@ class WsgiApp:
         return environ
 
     def start_app(self, app):
+        if self.config and self.config.STATIC_URL:
+            app = StaticsHandler(app, self.req, self.config)
         app_resp = app(self.wsgi_headers(), self.resp.start_response)
         self.resp.write_response(app_resp)
         #resp = Response(self.req,self.conn,self.server)
@@ -88,12 +92,16 @@ class WsgiApp:
             pass
 
 
-def load_app(args):
-    app = args.app
+def getapp(app):
     try:
         module, func = app.split(":")
     except (ValueError, TypeError):
         module, func = app, "application"
+    return module, func
+
+
+def load_app(args):
+    module, func = getapp(args.app)
     try:
         sys.path.insert(0, os.getcwd())
         app = importlib.import_module(module)
@@ -106,3 +114,9 @@ def load_app(args):
     if not hasattr(func, '__call__'):
         sys.exit("app must be a callable object")
     return func
+
+
+def reload_app(args):
+    module, func = getapp(args.app)
+    importlib.reload(sys.modules[module])
+    return getattr(sys.modules[module], func)

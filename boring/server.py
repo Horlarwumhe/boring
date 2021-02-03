@@ -10,37 +10,11 @@ import sys
 import threading
 import traceback
 
-from boring import wsgi
-from boring import __version__
+from boring import __version__, utils, wsgi
+from boring.config import BadConfigFile, Config, DummyConfig
 from boring.exception import HttpException
 from boring.http import HTTPParser, Request
 from boring.wsgi import WsgiApp
-
-
-def create_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("app", help='wsgi app to load')
-    parser.add_argument("-p",
-                        "--port",
-                        default=int(os.environ.get("PORT", 8000)),
-                        help='port number to use, default 8000')
-    parser.add_argument("--reload",
-                        action='store_true',
-                        help="enable auto reload")
-    parser.add_argument('-b',
-                        '--bind',
-                        default='0.0.0.0',
-                        help='bind to this address')
-    parser.add_argument(
-        '--config',
-        default='.',
-        help='path to configuration file, not usable now, will be added later')
-    parser.add_argument('-v',
-                        '--version',
-                        version=__version__,
-                        action='version')
-    args = parser.parse_args()
-    return args
 
 
 class Logger:
@@ -104,9 +78,7 @@ class SignalHandler:
 
 
 class Server:
-
     def __init__(self, config=None):
-        self.config = config  # todo: configuration class
         self.sel = selectors.DefaultSelector()
         self.sock = socket.socket()
         self.signals = ['SIGTERM', "SIGINT"]
@@ -115,6 +87,7 @@ class Server:
         self.args = None
         self.log = Logger()
         self.stop = False
+        self.config = config or DummyConfig()
 
     def init_socket(self):
         port = self.args.port
@@ -138,7 +111,7 @@ class Server:
         self.start_reload()
         while 1:
             events = self.sel.select(0)
-            for key, mask in events:
+            for key, _ in events:
                 if key.fileobj is self.sock:
 
                     self.handle_connection(self.sock)
@@ -165,7 +138,10 @@ class Server:
 
     def init(self):
         self.init_signals()
-        self.args = create_args()
+        self.args = utils.create_args()
+        if self.args.use_config:
+            self.config = Config(self.args)
+            self.config.load()
         self.load_app()
         # self.start_reload()
 
@@ -213,7 +189,8 @@ class Server:
             return
         try:
             request = Request(parser)
-            wsgiapp = WsgiApp(self.app, request, conn, self, self.log)
+            wsgiapp = WsgiApp(self.app, request, conn, self, self.log,
+                              self.config)
             wsgiapp.dispatch_request()
         except socket.error:
             self.close_connection(conn)
@@ -223,13 +200,12 @@ class Server:
             self.close_connection(conn)
         except Exception as e:
             self.close_connection(conn)
-            #conn.recv(1000)
             traceback.print_exc()
 
     def handle_filechange(self, file):
         ''' this function is called from another thread when files change'''
         importlib.reload(file)
-        self.load_app()
+        self.app = wsgi.reload_app(self.args)
 
     def close_connection(self, conn):
         ''' Close the connection after serving the request '''
@@ -246,14 +222,14 @@ class Server:
         """ re-use connection for keep-alive header"""
         self.close_connection(conn)
         return
-        # dont want to keep connection for now
-        try:
-            self.sel.unregister(conn)
-            self.sel.register(conn,
-                              selectors.EVENT_READ,
-                              data=HTTPParser(conn, self, req.addr))
-        except (KeyError, ValueError):
-            pass
+        # # dont want to keep connection for now
+        # try:
+        #     self.sel.unregister(conn)
+        #     self.sel.register(conn,
+        #                       selectors.EVENT_READ,
+        #                       data=HTTPParser(conn, self, req.addr))
+        # except (KeyError, ValueError):
+        #     pass
 
     def shutdown(self):
         ''' shutdown the server'''
