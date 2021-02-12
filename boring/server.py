@@ -1,5 +1,5 @@
 import argparse
-import errno
+import contextlib
 import importlib
 import logging
 import os
@@ -7,6 +7,7 @@ import selectors
 import signal
 import socket
 import sys
+import time
 import threading
 import traceback
 
@@ -88,6 +89,7 @@ class Server:
         self.log = Logger()
         self.stop = False
         self.config = config or DummyConfig()
+        self._active_conns = {}
 
     def init_socket(self):
         port = self.args.port
@@ -124,6 +126,7 @@ class Server:
                         traceback.print_exc()
                         self.close_connection(key.fileobj)
                         #key.fileobj.send(b"h")
+            self.manage_connections()
 
     def init_signals(self):
         for sig in self.signals:
@@ -162,6 +165,7 @@ class Server:
         self.sel.register(conn,
                           selectors.EVENT_READ,
                           data=HTTPParser(conn, self, addr))
+        self._active_conns[conn] = int(time.time())
         #self.sel.unregister(conn)
 
     def handle_request(self, conn, parser):
@@ -215,21 +219,38 @@ class Server:
             self.sel.unregister(conn)
         except (ValueError, KeyError):  # raised by selectors.unregister
             pass
-        finally:
+        try:
             conn.close()
+        except OSError:
+            pass
+        with contextlib.suppress(KeyError):
+                del self._active_conns[conn]
 
     def reuse_connection(self, conn, req):
         """ re-use connection for keep-alive header"""
-        self.close_connection(conn)
-        return
-        # # dont want to keep connection for now
-        # try:
-        #     self.sel.unregister(conn)
-        #     self.sel.register(conn,
-        #                       selectors.EVENT_READ,
-        #                       data=HTTPParser(conn, self, req.addr))
-        # except (KeyError, ValueError):
-        #     pass
+        try:
+            self.sel.unregister(conn)
+            self.sel.register(conn,
+                              selectors.EVENT_READ,
+                              data=HTTPParser(conn, self, req.addr))
+        except (KeyError, ValueError):
+            self.close_connection(conn)
+            if conn in self._active_conns:
+                del self._active_conns[conn]
+        else:
+            self._active_conns[conn] = int(time.time())
+
+    def manage_connections(self):
+        '''  remove some connections that are inactive for some time'''
+        active = self._active_conns.items()
+        timeout_conns = []
+        for conn, conn_time in active:
+            if int(time.time()) - conn_time > 45:
+                timeout_conns.append(conn)
+        for conn in timeout_conns:
+            self.close_connection(conn)
+            with contextlib.suppress(KeyError):
+                del self._active_conns[conn]
 
     def shutdown(self):
         ''' shutdown the server'''

@@ -1,7 +1,7 @@
 import io
 import time
 import urllib.parse
-
+import socket
 from boring import __version__
 from boring.exception import BadRequest, InvalidHeader
 from boring.utils import http_date
@@ -248,11 +248,28 @@ class HTTPParser:
                 self.begin = True
                 return
             chunck = buf.readline(size)
-            if len(chunck) != size:
+            if len(chunck) < size:
                 while len(chunck) < size:
-                    # This fixes chunck  length less than size
-                    # caused by .readline()
-                    chunck += buf.readline(size - len(chunck))
+                    # either all the data in buf has been read
+                    # or ,readline() doesnt return required amount
+                    remain = buf.readline(size - len(chunck))
+                    if not remain:
+                        #   all the data in buf has been read
+                        #   get the current position
+                        pos = buf.tell()
+                        self.conn.settimeout(0.5)
+                        try:
+                            #  recieve remaining data from the client
+                            data = self.conn.recv(1024)
+                        except (socket.error, socket.timeout):
+                            return
+                        #  write it into the buf
+                        buf.write(data)
+                        #  seek to the current position before
+                        # writing nwe data
+                        buf.seek(pos)
+                        continue
+                    chunck += remain
             buf.readline()  # discard trailing \r\n
             self.body.write(chunck)
 
