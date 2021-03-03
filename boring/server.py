@@ -16,6 +16,7 @@ from boring.config import BadConfigFile, Config, DummyConfig
 from boring.exception import HttpException
 from boring.http import HTTPParser, Request
 from boring.wsgi import WsgiApp
+from .dir import DirectoryServer
 
 
 class Logger:
@@ -79,12 +80,13 @@ class SignalHandler:
 
 
 class Server:
-    def __init__(self, config=None):
+    def __init__(self, app=None, config=None, args=None):
         self.sel = selectors.DefaultSelector()
         self.sock = socket.socket()
         self.signals = ['SIGTERM', "SIGINT"]
         self.signal_class = SignalHandler(self)
-        self.app = None
+        self.module = None
+        self.app = app
         self.args = None
         self.log = Logger()
         self.stop = False
@@ -141,11 +143,14 @@ class Server:
 
     def init(self):
         self.init_signals()
-        self.args = utils.create_args()
+        args = self.create_args()
         if self.args.use_config:
             self.config = Config(self.args)
             self.config.load()
-        self.load_app()
+        if self.args.app == ".":
+            self.module = DirectoryServer
+        else:
+            self.load_app()
         # self.start_reload()
 
     def start_reload(self):
@@ -155,6 +160,11 @@ class Server:
 
     def load_app(self):
         self.app = wsgi.load_app(self.args)
+
+    def create_args(self):
+        args = utils.create_args()
+        self.args = args
+        return args
 
     def handle_connection(self, sock):
         try:
@@ -193,9 +203,7 @@ class Server:
             return
         try:
             request = Request(parser)
-            wsgiapp = WsgiApp(self.app, request, conn, self, self.log,
-                              self.config)
-            wsgiapp.dispatch_request()
+            self.run(request, conn)
         except socket.error:
             self.close_connection(conn)
             return
@@ -206,6 +214,16 @@ class Server:
             self.close_connection(conn)
             traceback.print_exc()
 
+    def run(self, request, conn):
+        if self.module:
+            self.module(conn, request, self).run()
+            self.close_connection(conn)
+            return
+        wsgiapp = WsgiApp(self.app, request, conn, self.log, self, self.config)
+        wsgiapp.run()
+        # wsgiapp = WsgiApp(self.app, request, conn, self, self.log,
+        #                       self.config)
+        #     wsgiapp.dispatch_request()
     def handle_filechange(self, file):
         ''' this function is called from another thread when files change'''
         importlib.reload(file)
@@ -224,7 +242,7 @@ class Server:
         except OSError:
             pass
         with contextlib.suppress(KeyError):
-                del self._active_conns[conn]
+            del self._active_conns[conn]
 
     def reuse_connection(self, conn, req):
         """ re-use connection for keep-alive header"""
@@ -269,6 +287,7 @@ def reload(server):
     while 1:
         for mod in mtimes:
             if server.stop:
+            	#  signal from main thread to stop
                 sys.exit(0)
             s = os.stat(mod.__file__).st_mtime
             if s > mtimes[mod]:

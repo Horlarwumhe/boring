@@ -11,7 +11,7 @@ from boring.middleware import StaticsHandler
 
 
 class WsgiApp:
-    def __init__(self, app, request, conn, server, log, config=None):
+    def __init__(self, app, request, conn, log, server, config=None):
         self.server = server
         self.req = request
         self.app = app
@@ -59,8 +59,9 @@ class WsgiApp:
         self.resp.write_response(app_resp)
         #resp = Response(self.req,self.conn,self.server)
 
-    def dispatch_request(self):
+    def run(self):
         try:
+
             self.start_app(self.app)
         except Exception as e:
             self.handle_error(e)

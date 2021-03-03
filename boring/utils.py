@@ -27,17 +27,23 @@ def parse_header_date(date_str):
             year = '20' + year
         return datetime(int(year), int(MONTHS.get(month)), int(day), hour,
                         minute, second)
-    else:
-        return datetime.utcfromtimestamp(time.time())
+    return datetime.utcfromtimestamp(time.time())
 
 
-def http_date():
+def http_date(d_time=None):
+    if d_time:
+        return datetime.utcfromtimestamp(d_time).strftime(
+            "%a, %d %b %y %H:%M:%S GMT")
     return datetime.utcnow().strftime("%a, %d %b %y %H:%M:%S GMT")
 
 
 def create_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument("app", help='wsgi app to load')
+    parser.add_argument("app",
+                        help='''wsgi app to load or . to serve 
+                         current directory on http
+
+                         ''')
     parser.add_argument("-p",
                         "--port",
                         default=int(os.environ.get("PORT", 8000)),
@@ -56,5 +62,10 @@ def create_args():
                         '--version',
                         version=__version__,
                         action='version')
+
+    parser.add_argument('-d',
+                        '--directory',
+                        help='serve current directory on http')
+
     args = parser.parse_args()
     return args

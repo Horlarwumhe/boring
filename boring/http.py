@@ -266,7 +266,7 @@ class HTTPParser:
                         #  write it into the buf
                         buf.write(data)
                         #  seek to the current position before
-                        # writing nwe data
+                        # writing new data
                         buf.seek(pos)
                         continue
                     chunck += remain
@@ -298,7 +298,8 @@ class HTTPParser:
             # self.body_set = True
 
     def __call__(self, conn=None):
-        data = self.conn.recv(1024)
+        data = self.conn.recv(2048)
+        # print(data.decode())
         if not data:
             #client close connection
             self.is_alive = False
