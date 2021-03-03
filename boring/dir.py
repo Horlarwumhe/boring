@@ -5,13 +5,19 @@ from boring.http import Response
 from . import utils
 
 TEMPLATE = '''
-<h3> Directory Listing for /{current_path}</h3>
-<ul>
-<p> files <div style='text-align:center'>size</div>
-{paths}
-</ul>
-
+<h1> Directory listing for /{current_path}/</h1>
+<table style="border-spacing:15px 0px;">
+  <tr>
+    <th><h2>files</h2></th>
+    <th> <h2>size</h2> </th>
+    <th> <h2> Type </h2>
+  </tr>
+  <tr><th><hr></th></tr>
+  
+      {paths}
+</table>
 '''
+
 
 
 class DirectoryServer:
@@ -65,21 +71,30 @@ class DirectoryServer:
             directory = os.listdir(path)
         for p in directory:
             abspath = os.path.join(path, p)
+            _type = 'file' if os.path.isfile(abspath) else 'folder'
             links.append('''
-                    <li>
+                <tr>
+                    <td style="font-size: 30px;">
                         <a href="/%s">%s</a>
-                        <div style='text-align:center'>%skb
-                        </div>
-                     </li>''' % (abspath, p, os.stat(abspath).st_size // 1024))
+                    </td>
+                    <td> 
+                       %s KB 
+                    </td>
+                    <td>
+                    %s
+                    </td>
+                </tr>
+                    ''' % (abspath, p, os.stat(abspath).st_size // 1024,_type))
 
         links = '\n'.join(links)
         res = TEMPLATE.format(paths=links, current_path=path)
+        res = res.encode()
         header = [
             ("Content-Type", 'text/html'),
             ('Content-Length', len(res)),
         ]
         self.resp.start_response('200 OK', header)
-        return [res.encode()]
+        return [res]
 
     def open_file(self, path):
 
