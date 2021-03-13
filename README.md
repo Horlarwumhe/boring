@@ -18,6 +18,8 @@ assuming there is myapp.py in the current directory and and a callable object `a
 using boring with django
 `boring yourproject.wsgi` or `python -m boring yourproject.wsgi`
 
+you can serve current directory on http instead of web app, with `boring . ` , the current directory will be served on http
+
 ## command line options
 	usage: boring [-h] [-p PORT] [--reload] [-b BIND] [--use-config] [-v] app
 
