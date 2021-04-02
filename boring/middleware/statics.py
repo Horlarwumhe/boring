@@ -11,9 +11,11 @@ from datetime import datetime
 from boring import __version__, utils
 
 DATE_RE = re.compile(
-    r'''(?P<week>[a-zA-Z]{3,}).?\s*
+    r'''
+    # Thu, 23 Apr 2020 21:00:22
+    (?P<week>[a-zA-Z]{3,}).?\s*
       (?P<day>[0-9]{2,4})\s*
-      (?P<month>[a-zA-Z]+){3,}\s*
+      (?P<month>[a-zA-Z]){3,}\s*
       (?P<year>[0-9]{4})\s*
       (?P<time>\d\d:\d\d:\d\d)
 

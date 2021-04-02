@@ -37,6 +37,9 @@ class Config:
     def __getitem__(self, name):
         value = self._options.get(name)
         if not value:
+            if not self.args:
+                # the server is not started from command line
+                return ''
             return getattr(self.args, name, '')
         return value
 

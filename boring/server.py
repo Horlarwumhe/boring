@@ -20,9 +20,10 @@ from .dir import DirectoryServer
 
 
 class Logger:
-    # [23/Jan/2021 12:43:30] code 501, message Unsupported method ('POST')
+
+    # 127.0.0.1 -- [2021-03-20 08:05:16,814] GET / HTTP/1.1 200
     def __init__(self):
-        self._access = logging.getLogger(__name__)
+        self._access = logging.getLogger('boring.server')
         self._access.setLevel(logging.DEBUG)
         ch = logging.StreamHandler()
         ch.setLevel(logging.DEBUG)
@@ -100,7 +101,7 @@ class Server:
             self.sock.bind((addr, int(port)))
         except OSError as e:
             print("[ERROR] could't bind to address %s:%s" % (addr, port), e)
-            sys.exit(-1)
+            sys.exit(1)
         self.sock.listen(100)
         self.sock.setblocking(False)
         self.sel.register(self.sock, selectors.EVENT_READ,
@@ -253,8 +254,6 @@ class Server:
                               data=HTTPParser(conn, self, req.addr))
         except (KeyError, ValueError):
             self.close_connection(conn)
-            if conn in self._active_conns:
-                del self._active_conns[conn]
         else:
             self._active_conns[conn] = int(time.time())
 
@@ -267,8 +266,6 @@ class Server:
                 timeout_conns.append(conn)
         for conn in timeout_conns:
             self.close_connection(conn)
-            with contextlib.suppress(KeyError):
-                del self._active_conns[conn]
 
     def shutdown(self):
         ''' shutdown the server'''

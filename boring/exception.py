@@ -28,7 +28,7 @@ class HttpException(Exception):
         error = HTML_ERROR.format(reason=self.reason, body=self.body)
         status = "HTTP/1.1 %s %s\r\n" % (self.code, self.reason)  # encode()
         status = status.encode()
-        self.headers.extend([("Content-Length", len(error)),
+        self.headers.extend([("Content-Length", len(error.encode())),
                              ("Date", http_date()), ("Connection", 'close')])
         headers = ["%s: %s\r\n" % (k, v) for k, v in self.headers]
         headers.append("\r\n")

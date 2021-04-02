@@ -117,16 +117,15 @@ class Response:
         ]
         status = b" ".join(status)
         self.write(status)
-        #self.conn.send(status)
         connection = self.req.headers.get('Connection', 'close')
         self.headers.append(("Connection", connection))
         header = self.process_headers(self.headers)
-        #self.write_body(h)
         self.write(header)
         self.headers_sent = True
         self.write_body(data, size, chunck)
 
     def write_chunck(self, data):
+        ''' send the data with chunck transfer'''
         iterator = iter(data)
         try:
             while 1:
@@ -154,6 +153,8 @@ class Response:
                     data_chunck = next(iterator)
                 except StopIteration:
                     break
+                # make sure the server doesnt send data
+                # more than the content-length specified
                 if self.sent >= size:
                     return
                 remain = size - self.sent
@@ -184,7 +185,7 @@ class BodyReader:
 
     @property
     def size(self):
-        return self.tell
+        return self.tell()
 
     def seek(self, pos):
         self.buf.seek(pos)

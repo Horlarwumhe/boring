@@ -1,8 +1,15 @@
+'''serving directory on http.
+   this works like `python -m http.server`
+
+'''
+
+
 import os
 import mimetypes
 
 from boring.http import Response
 from . import utils
+from boring.exception import BadRequest
 
 TEMPLATE = '''
 <h1> Directory listing for /{current_path}/</h1>
@@ -31,6 +38,9 @@ class DirectoryServer:
 
     def serve(self):
         path = self.request.path.replace('/', '', 1)
+        if path.startswith('/'):
+            # avoid revealing system root directory
+            raise BadRequest()
         if path == '':
             path = '.'
             resp = self.listdir(path)
@@ -116,3 +126,9 @@ class DirectoryServer:
         self.resp.start_response('200 OK', header)
 
         return content
+
+
+# if __name__ == '__main__':
+#     from boring.server import Server
+
+    

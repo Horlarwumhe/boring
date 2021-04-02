@@ -11,7 +11,7 @@ from boring.middleware import StaticsHandler
 
 
 class WsgiApp:
-    def __init__(self, app, request, conn, log, server, config=None):
+    def __init__(self, app, request, conn, log=None, server=None, config=None):
         self.server = server
         self.req = request
         self.app = app
@@ -43,7 +43,6 @@ class WsgiApp:
             "SERVER_PROTOCOL": self.req.proto
         }
         headers = self.req.headers.items()
-        #(headers,"headee")
         for k, v in headers:
             if k not in ("Content-Length", "Content-Type"):
                 k = "HTTP_" + k.replace("-", "_")
@@ -94,6 +93,7 @@ class WsgiApp:
 
 
 def getapp(app):
+    ''' get wsgi callable object'''
     try:
         module, func = app.split(":")
     except (ValueError, TypeError):
@@ -113,7 +113,8 @@ def load_app(args):
         raise AttributeError(" module %s has no attribute %s " %
                              (module, func))
     if not hasattr(func, '__call__'):
-        sys.exit("app must be a callable object")
+        print("app must be a callable object")
+        sys.exit(1)
     return func
 
 
