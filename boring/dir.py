@@ -3,13 +3,13 @@
 
 '''
 
-
-import os
 import mimetypes
+import os
 
-from boring.http import Response
-from . import utils
 from boring.exception import BadRequest
+from boring.http import Response
+
+from . import utils
 
 TEMPLATE = '''
 <h1> Directory listing for /{current_path}/</h1>
@@ -20,11 +20,10 @@ TEMPLATE = '''
     <th> <h2> Type </h2>
   </tr>
   <tr><th><hr></th></tr>
-  
+
       {paths}
 </table>
 '''
-
 
 
 class DirectoryServer:
@@ -94,7 +93,8 @@ class DirectoryServer:
                     %s
                     </td>
                 </tr>
-                    ''' % (abspath, p, os.stat(abspath).st_size // 1024,_type))
+                    ''' %
+                         (abspath, p, os.stat(abspath).st_size // 1024, _type))
 
         links = '\n'.join(links)
         res = TEMPLATE.format(paths=links, current_path=path)
@@ -112,23 +112,14 @@ class DirectoryServer:
         header = []
         filetype, enc = mimetypes.guess_type(path)
         if filetype:
+            if enc:
+                filetype = filetype + ', charset=%s' % enc
             header.append(('Content-Type', filetype))
-        if length > 1_000_000:  # 1 MB
-            content = open(path, 'rb')
-            header.append(("Transfer-Encoding", 'chunked'))
-        else:
-            file = open(path, 'rb')
-            content = [file.read()]
-            file.close()
-            header.append(("Content-Length", str(length)))
-
-        # date = utils.http_date(os.stat(path).st_mtime)
+        header.append(("Content-Length", str(length)))
         self.resp.start_response('200 OK', header)
 
-        return content
+        return open(path, 'rb')
 
 
 # if __name__ == '__main__':
 #     from boring.server import Server
-
-    

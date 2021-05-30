@@ -84,12 +84,12 @@ class StaticsHandler:
         headers = self.headers
         last_modified = datetime.utcfromtimestamp(
             os.stat(file).st_mtime).strftime('%a, %d %b %y %H:%M:%S GMT')
-
+        size = os.stat(file).st_size
         mime_type, _ = mimetypes.guess_type(file)
         if mime_type:
             self.headers.append(('Content-Type', mime_type))
 
-        headers.extend([("Transfer-Encoding", "chunked"),
+        headers.extend([("Content-Length", str(size)),
                         ('Last-Modified', last_modified)])
         try:
             static = open(file, 'rb')
