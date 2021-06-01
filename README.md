@@ -52,4 +52,3 @@ then add `--use-config` to the command line argument when starting the server
 [test-boring.herokuapp.com](http://test-boring.herokuapp.com) , is flask webapp copied from [miguelgrinberg blog](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world) running boring as http server
 
 [firdawss.herokuapp.com](http://firdawss.herokuapp.com) a django powered site running boring as the webserver
-

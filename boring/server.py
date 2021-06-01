@@ -16,7 +16,9 @@ from boring.config import BadConfigFile, Config, DummyConfig
 from boring.exception import HttpException
 from boring.http import HTTPParser, Request
 from boring.wsgi import WsgiApp
+
 from .dir import DirectoryServer
+from . import reloader
 
 
 class Logger:
@@ -93,6 +95,7 @@ class Server:
         self.stop = False
         self.config = config or DummyConfig()
         self._active_conns = {}
+        self.started = False
 
     def init_socket(self):
         port = self.args.port
@@ -113,7 +116,8 @@ class Server:
         self.init()
         self.init_socket()
         print("[INFO]", 'server started, press control-c to stop')
-        self.start_reload()
+        self.started = True
+        reloader.start(self)
         while 1:
             events = self.sel.select(0)
             for key, _ in events:
@@ -145,6 +149,7 @@ class Server:
     def init(self):
         self.init_signals()
         args = self.create_args()
+        self.check_reload_arg()
         if self.args.use_config:
             self.config = Config(self.args)
             self.config.load()
@@ -154,10 +159,14 @@ class Server:
             self.load_app()
         # self.start_reload()
 
-    def start_reload(self):
-        if self.args.reload:
-            threading.Thread(target=reload, args=[self]).start()
-            print('[INFO] auto reload starting')
+    def check_reload_arg(self):
+        if  not self.args.reload:
+            return
+        reload_proc = os.environ.get("BORING_RELOAD_PROC")
+        if not reload_proc:
+            # main process
+                code = reloader.start_new_process()
+                sys.exit(code)
 
     def load_app(self):
         self.app = wsgi.load_app(self.args)
@@ -225,10 +234,6 @@ class Server:
         # wsgiapp = WsgiApp(self.app, request, conn, self, self.log,
         #                       self.config)
         #     wsgiapp.dispatch_request()
-    def handle_filechange(self, file):
-        ''' this function is called from another thread when files change'''
-        importlib.reload(file)
-        self.app = wsgi.reload_app(self.args)
 
     def close_connection(self, conn):
         ''' Close the connection after serving the request '''
@@ -274,24 +279,3 @@ class Server:
         self.stop = True
         sys.exit(0)
 
-
-def reload(server):
-    mtimes = {}
-    for module_name, module in sys.modules.items():
-        if hasattr(module, '__file__') and module.__file__ is not None:
-            mtime = os.stat(module.__file__).st_mtime
-            mtimes[module] = mtime
-    while 1:
-        for mod in mtimes:
-            if server.stop:
-            	#  signal from main thread to stop
-                sys.exit(0)
-            s = os.stat(mod.__file__).st_mtime
-            if s > mtimes[mod]:
-                print(mod.__file__, 'changed')
-                mtimes[mod] = s
-                try:
-                    server.handle_filechange(mod)
-                except Exception:
-                    print("[CRITICAL] error loading file", mod.__file__)
-                    traceback.print_exc()
