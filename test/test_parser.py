@@ -76,17 +76,17 @@ this t'''.replace(b'\n', b'\r\n')
 
 class IncompleteTest(unittest.TestCase):
     '''
-    this class test some situation where the 
-    request body is less than content-length 
-    specified in the header field
+    This class test some situations where the
+    request body is less than content-length
+    specified in the header field.
     eg
             POST / HTTP/1.1
             Content-Length: 10
             Host: localhost
 
             hello w
-    the content-length is 10, but request body size is 7,
-    check if the server will start processing the request
+    The content-length is 10, but request body size is 7.
+    Check if the server will start processing the request
     '''
     def get_parser(self):
         conn = Incomplete()
@@ -111,9 +111,9 @@ hello this is request body with excess data'''.replace(b'\n', b'\r\n')
 
 class TestExcessData(unittest.TestCase):
     '''
-    this class test situation where data sent is 
-    more than the content-length in the header
-    the server only read the size in the header field
+    This class test situations where data sent is
+    more than the content-length in the header.
+    The server only read the size in the header field.
     eg.
         POST / HTTP/1.1
             Content-Length: 20
@@ -121,7 +121,7 @@ class TestExcessData(unittest.TestCase):
 
             hello word excess data in the body
 
-    the content-length is 20 but body size is 34
+    The content-length is 20 but body size is 34
     '''
 
     def get_request(self):
