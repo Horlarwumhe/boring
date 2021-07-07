@@ -2,25 +2,26 @@
 ### Boring
 
 A simple [HTTP](https://en.m.wikipedia.org/wiki/Hypertext_Transfer_Protocol) webserver for [WSGI]( https://en.m.wikipedia.org/wiki/Web_Server_Gateway_Interface) compatible web app, 
-support any wsgi web framework , django,flask, bottle and others. it is fairly fast .........
+support any wsgi web framework , django,flask, bottle and others. It is fairly fast .........
 
 
 ### installation
 
-boring has no dependency except python standard library, so it can be installed by cloning this repository , then run python setup.py install , or install from `pypi` with `pip install boring`
+boring has no dependency except python standard library, so it can be installed by cloning this repository , then run python setup.py install , or install from `pypi` with `pip install boring`.
 
 ## Starting the server
 
 `boring myapp:app` or `python -m boring myapp:app`
 
-assuming there is myapp.py in the current directory and and a callable object `app` in myapp.py
+Assuming there is myapp.py in the current directory and and a callable object `app` in myapp.py.
 
-using boring with django
+Using with django
+
 `boring yourproject.wsgi` or `python -m boring yourproject.wsgi`
 
 you can serve current directory on http instead of web app, with `boring . ` , the current directory will be served on http
 
-## command line options
+## Command Line Options
 	usage: boring [-h] [-p PORT] [--reload] [-b BIND] [--use-config] [-v] app
 
 	positional arguments:
@@ -47,7 +48,7 @@ boring can be configured to serve static files (js,css,images and others). to se
 ` STATIC_ROOT=path  # folder where to find static files`
 then add `--use-config` to the command line argument when starting the server
 
-### Boring in action
+### Boring In Action
 
 [test-boring.herokuapp.com](http://test-boring.herokuapp.com) , is flask webapp copied from [miguelgrinberg blog](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world) running boring as http server
 

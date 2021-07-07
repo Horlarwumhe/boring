@@ -58,7 +58,7 @@ class Response:
         self.req = req
         self.conn = conn
         self.headers = []
-        self.code = ""
+        self.code = None
         self.reason = ""
         self.sent = 0
         self.headers_set = False

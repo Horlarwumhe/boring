@@ -3,7 +3,7 @@ file = open('README.md')
 description = file.read()
 file.close()
 setuptools.setup(name="boring",
-                 version="0.0.4",
+                 version="1.0.0",
                  author="Horlarwumhe",
                  author_email="amachiever4real@gmail.com",
                  description="A small HTTP web server for wsgi compatible apps",
