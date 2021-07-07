@@ -3,7 +3,6 @@ import sys
 import os
 import threading
 import time
-# use code 111 for reload
 
 
 def start_new_process():
@@ -11,10 +10,17 @@ def start_new_process():
         argv = sys.argv
         env = os.environ.copy()
         env['BORING_RELOAD_PROC'] = 'true'
-        code = subprocess.call(argv, env=env)
+        try:
+            code = subprocess.call(argv, env=env)
+        except OSError as e:
+            if e.errno in (2,193,8):
+                py = os.path.basename(sys.executable)
+                argv.insert(0,py)
+                code = subprocess.call(argv, env=env)
+            else:
+                raise
         if code == 3:
             continue
-        print('returned ',code)
         return code
 
 
@@ -22,6 +28,7 @@ def start(server):
     def main():
         mtimes = {}
         while not server.started:
+            # wait till server starts
             if server.stop:
                 sys.exit(0)
         print('[INFO] auto reload starting')
@@ -38,7 +45,6 @@ def start(server):
                 s = os.stat(mod.__file__).st_mtime
                 if s > mtimes[mod]:
                     print(mod.__file__, 'changed restarting')
-                    mtimes[mod] = s
                     os.kill(os.getpid(), 3)
             time.sleep(1)
     threading.Thread(target=main).start()

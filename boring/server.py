@@ -1,6 +1,4 @@
-import argparse
 import contextlib
-import importlib
 import logging
 import os
 import selectors
@@ -23,7 +21,7 @@ from . import reloader
 
 class Logger:
 
-    # 127.0.0.1 -- [2021-03-20 08:05:16,814] GET / HTTP/1.1 200
+    # 127.0.0.1 -- [01/07/2021 21:09:48 PM] GET / HTTP/1.1 200 --
     def __init__(self):
         self._access = logging.getLogger('boring.server')
         self._access.setLevel(logging.DEBUG)
@@ -31,8 +29,8 @@ class Logger:
         ch.setLevel(logging.DEBUG)
 
         formatter = logging.Formatter(
-            ' %(addr)s -- [%(asctime)s] %(method)s %(path)s %(proto)s %(code)s -- %(message)s'
-        )
+            ' %(addr)s -- [%(asctime)s] %(method)s %(path)s %(proto)s %(code)s -- %(message)s',
+            datefmt='%d/%m/%Y %H:%M:%S %p')
         ch.setFormatter(formatter)
         ##
         ### add ch to logger
@@ -117,7 +115,8 @@ class Server:
         self.init_socket()
         print("[INFO]", 'server started, press control-c to stop')
         self.started = True
-        reloader.start(self)
+        if "BORING_RELOAD_PROC" in os.environ:
+            reloader.start(self)
         while 1:
             events = self.sel.select(0)
             for key, _ in events:
@@ -160,13 +159,13 @@ class Server:
         # self.start_reload()
 
     def check_reload_arg(self):
-        if  not self.args.reload:
+        if not self.args.reload:
             return
         reload_proc = os.environ.get("BORING_RELOAD_PROC")
         if not reload_proc:
             # main process
-                code = reloader.start_new_process()
-                sys.exit(code)
+            code = reloader.start_new_process()
+            sys.exit(code)
 
     def load_app(self):
         self.app = wsgi.load_app(self.args)
@@ -267,7 +266,7 @@ class Server:
         active = self._active_conns.items()
         timeout_conns = []
         for conn, conn_time in active:
-            if int(time.time()) - conn_time > 45:
+            if int(time.time()) - conn_time > 30:
                 timeout_conns.append(conn)
         for conn in timeout_conns:
             self.close_connection(conn)
@@ -278,4 +277,3 @@ class Server:
         self.sel.close()
         self.stop = True
         sys.exit(0)
-
