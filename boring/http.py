@@ -69,7 +69,7 @@ class Response:
         if getattr(self, "headers_set", False):
             return
         code, reason = status.split(" ", 1)
-        self.code = code
+        self.code = int(code)
         self.reason = reason
         self.headers.extend(headers)
         self.headers.extend(self.default_headers())
@@ -104,12 +104,13 @@ class Response:
     def write_response(self, data):
         if not self.headers_set:
             raise TypeError("start_response not called")
-        size = self.get_length()
-        chunck = False
-        if size is None:
-            chunck = True
-            if not self.is_chunck():
-                self.headers.append(("Transfer-Encoding", 'chunked'))
+        if self.code not in (204,304):
+            size = self.get_length()
+            chunck = False
+            if size is None:
+                chunck = True
+                if not self.is_chunck():
+                    self.headers.append(("Transfer-Encoding", 'chunked'))
         status = [
             b"HTTP/1.1",
             str(self.code).encode(),
@@ -122,7 +123,8 @@ class Response:
         header = self.process_headers(self.headers)
         self.write(header)
         self.headers_sent = True
-        self.write_body(data, size, chunck)
+        if self.code not in (204,304):
+            self.write_body(data, size, chunck)
 
     def write_chunck(self, data):
         ''' send the data with chunck transfer'''
