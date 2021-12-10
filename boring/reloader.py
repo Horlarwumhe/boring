@@ -1,8 +1,12 @@
 import subprocess
 import sys
+import signal
 import os
 import threading
 import time
+
+def sig_winch(*args):
+    sys.exit(111)
 
 
 def start_new_process():
@@ -13,13 +17,13 @@ def start_new_process():
         try:
             code = subprocess.call(argv, env=env)
         except OSError as e:
-            if e.errno in (2,193,8):
+            if e.errno in (2,193,8,13):
                 py = os.path.basename(sys.executable)
                 argv.insert(0,py)
                 code = subprocess.call(argv, env=env)
             else:
                 raise
-        if code == 3:
+        if code == 111:
             continue
         return code
 
@@ -45,6 +49,8 @@ def start(server):
                 s = os.stat(mod.__file__).st_mtime
                 if s > mtimes[mod]:
                     print(mod.__file__, 'changed restarting')
-                    os.kill(os.getpid(), 3)
+                    os.kill(os.getpid(),signal.SIGWINCH)
+                    break
             time.sleep(1)
     threading.Thread(target=main).start()
+

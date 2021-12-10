@@ -75,16 +75,21 @@ class SignalHandler:
     def sigint(self, *args):
         print("[INFO] quiting server .......")
         self.server.shutdown()
+        sys.exit(0)
 
     def unknown(self, *args):
         print('[INFO] ignoring unknown signal,', args[0])
+
+    def sigwinch(self,*args):
+        self.server.shutdown()
+        sys.exit(111)
 
 
 class Server:
     def __init__(self, app=None, config=None, args=None):
         self.sel = selectors.DefaultSelector()
         self.sock = socket.socket()
-        self.signals = ['SIGTERM', "SIGINT"]
+        self.signals = ['SIGTERM', "SIGINT","SIGWINCH"]
         self.signal_class = SignalHandler(self)
         self.module = None
         self.app = app
@@ -99,6 +104,7 @@ class Server:
         port = self.args.port
         addr = self.args.bind
         try:
+            self.sock.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEPORT,True)
             self.sock.bind((addr, int(port)))
         except OSError as e:
             print("[ERROR] could't bind to address %s:%s" % (addr, port), e)
@@ -275,5 +281,5 @@ class Server:
         ''' shutdown the server'''
         self.sock.close()
         self.sel.close()
+        #self.sock.shutdown(socket.SHUT_RD|socket.SHUT_WR)
         self.stop = True
-        sys.exit(0)
